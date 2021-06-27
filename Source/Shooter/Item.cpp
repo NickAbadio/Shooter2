@@ -17,6 +17,7 @@ AItem::AItem()
 	CollisionBox->SetupAttachment(ItemMesh);
 
 	PickupWidget = CreateDefaultSubobject<UWidgetComponent((TEXT("PickupWidget")));
+	PickupWidget->SetupAttachment(GetRootComponent());
 
 
 }
