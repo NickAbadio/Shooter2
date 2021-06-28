@@ -53,6 +53,15 @@ protected:
 
 	void CalculatedCrosshairSpread(float DeltaTime);
 
+	//Trace for Items if itemcount is greater than 0
+	void TraceForItems();
+
+	/** Line trace for items under the crosshairs */
+	bool TraceUnderCrosshairs(FHitResult& OutHitResult, FVector& OutHitLocation);
+
+	void SpawnDefaultWeapon();
+
+	void EquipWeapon(class AWeapon* WeaponToEquip);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -143,6 +152,15 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Crosshairs, meta = (AllowPrivateAccess = "true"))
 	float CrosshairInAirFactor;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	class AItem* TraceHitItemLastFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	AWeapon* EquippedWeapon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AWeapon> DefaultWeaponClass;
+	
 	float ShootTimeDuration;
 	bool bFiringBullet;
 	FTimerHandle CrosshairShootTimer;
@@ -151,6 +169,11 @@ private:
 	bool bShouldFire;
 	float AutomaticFireRate;
 	FTimerHandle AutoFireTimer;
+
+	//true if we should trace every frame for items
+	bool bShouldTraceForItems;
+
+	int8 OverlappedItemCount;
 
 
 	void FireWeapon();
@@ -170,4 +193,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	float GetCrosshairSpreadMultplier() const;
+
+	FORCEINLINE int8 GetOverlappedItemCount() const {return OverlappedItemCount; }
+
+	void IncrementOverlappedItemCount(int8 Amount);
 };
