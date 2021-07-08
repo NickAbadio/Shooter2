@@ -6,6 +6,14 @@
 #include "GameFramework/Character.h"
 #include "ShooterCharacter.generated.h"
 
+UENUM()
+enum class EAmmoType : uint8
+{
+	EAT_9mm UMETA(DisplayName = "9mm"),
+	EAT_556mm UMETA(DisplayName = "556mm"),
+	EAT_MAX UMETA(DisplayName = "DefaultMax")
+};
+
 UCLASS()
 class SHOOTER_API AShooterCharacter : public ACharacter
 {
@@ -59,9 +67,24 @@ protected:
 	/** Line trace for items under the crosshairs */
 	bool TraceUnderCrosshairs(FHitResult& OutHitResult, FVector& OutHitLocation);
 
-	void SpawnDefaultWeapon();
+	class AWeapon* SpawnDefaultWeapon();
 
-	void EquipWeapon(class AWeapon* WeaponToEquip);
+	void EquipWeapon(AWeapon* WeaponToEquip);
+
+	//Detach Weapon and let it fall
+	void DropWeapon();
+
+	void SelectButtonPressed();
+	void SelectButtonReleased();
+
+	//Drops currently equipped weapon
+	void SwapWeapon(AWeapon* WeaponToSwap);
+
+	//Initialize the Ammo map with ammo values
+	void InitializeAmmoMap();
+
+	
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -109,6 +132,12 @@ private:
 	float CameraDefaultFOV;
 	float CameraCurrentFOV;
 	float CameraZoomedFOV;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	float CameraInterpDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	float CameraInterpElevation;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	float HipTurnRate;
@@ -183,6 +212,20 @@ private:
 	void ChangeCameraFOV(float DeltaTime);
 
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	AItem* TraceHitItem;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	TMap<EAmmoType, int32> AmmoMap;
+
+	//Starting amount of 9mm ammo
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Items, meta = (AllowPrivateAccess = "true"))
+	int32 Starting9mmAmmo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Items, meta = (AllowPrivateAccess = "true"))
+	int32 Starting556mmAmmo;
+
 public:
 	//** Returns CameraBoom subobject */
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const {return CameraBoom;}
@@ -197,4 +240,8 @@ public:
 	FORCEINLINE int8 GetOverlappedItemCount() const {return OverlappedItemCount; }
 
 	void IncrementOverlappedItemCount(int8 Amount);
+
+	void GetPickUpItem(AItem* Item);
+	
+	FVector GetCameraInterpLocation();
 };

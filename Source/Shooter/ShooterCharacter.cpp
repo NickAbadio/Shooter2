@@ -13,6 +13,8 @@
 #include "Item.h"
 #include "Components/WidgetComponent.h"
 #include "Weapon.h"
+#include "Components/SphereComponent.h"
+#include "Components/BoxComponent.h"
 
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
@@ -41,7 +43,11 @@ AShooterCharacter::AShooterCharacter() :
 	AutomaticFireRate(0.1f),
 	bShouldFire(true),
 	bFireButtonPressed(false),
-	bShouldTraceForItems(false)
+	bShouldTraceForItems(false),
+	CameraInterpElevation(65.f),
+	CameraInterpDistance(250.f),
+	Starting9mmAmmo(120),
+	Starting556mmAmmo(90)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -83,7 +89,9 @@ void AShooterCharacter::BeginPlay()
 		CameraCurrentFOV = CameraDefaultFOV;
 	}
 
-	SpawnDefaultWeapon();
+	//Spawn the default weapon and equip it
+	EquipWeapon(SpawnDefaultWeapon());
+	InitializeAmmoMap();
 
 
 }
@@ -441,24 +449,24 @@ void AShooterCharacter::TraceForItems()
 	
 	if(ItemTraceResult.bBlockingHit)
 		{
-			AItem* HitItem = Cast<AItem>(ItemTraceResult.Actor);
-			if(HitItem && HitItem->GetPickupWidget())
+			TraceHitItem = Cast<AItem>(ItemTraceResult.Actor);
+			if(TraceHitItem && TraceHitItem->GetPickupWidget())
 			{
 				//Show Item's Pickup Widget
-				HitItem->GetPickupWidget()->SetVisibility(true);
+				TraceHitItem->GetPickupWidget()->SetVisibility(true);
 			}
 
 			//We hit an AItem last frame
 			if (TraceHitItemLastFrame)
 			{
-				if(HitItem != TraceHitItemLastFrame)
+				if(TraceHitItem!= TraceHitItemLastFrame)
 				{
 					TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
 				
 				}
 			}
 
-			TraceHitItemLastFrame = HitItem;
+			TraceHitItemLastFrame = TraceHitItem;
 		}
 	else if (TraceHitItemLastFrame)
 	{
@@ -475,10 +483,23 @@ void AShooterCharacter::TraceForItems()
 }
 
 
-void AShooterCharacter::SpawnDefaultWeapon()
+AWeapon* AShooterCharacter::SpawnDefaultWeapon()
 {	
 	//Check the TSubclassOf variable
 	if(DefaultWeaponClass)
+	{
+		//Spawn the Weapon
+		return GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass);
+	}
+	return nullptr;
+}
+
+void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
+{
+	if(WeaponToEquip)
+	{
+		
+		if(DefaultWeaponClass)
 	{
 		//Spawn the Weapon
 		AWeapon* DefaultWeapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass);
@@ -487,10 +508,71 @@ void AShooterCharacter::SpawnDefaultWeapon()
 		if(HandSocket)
 		{
 			//Attach the weapon to the right hand socket
-			HandSocket->AttachActor(DefaultWeapon, GetMesh());
+			HandSocket->AttachActor(WeaponToEquip, GetMesh());
 		}
+
+		EquippedWeapon = WeaponToEquip;
+		EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
+	}
+	}
+
+}
+void AShooterCharacter::DropWeapon()
+{
+	if(EquippedWeapon)
+	{
+		FDetachmentTransformRules DetachmentTransformRules(EDetachmentRule::KeepWorld, true);
+		EquippedWeapon->GetItemMesh()->DetachFromComponent(DetachmentTransformRules);
+		EquippedWeapon->SetItemState(EItemState::EIS_Falling);
+		EquippedWeapon->ThrowWeapon();
 	}
 }
+
+void AShooterCharacter::SelectButtonPressed()
+{
+	if (TraceHitItem)
+	{
+		TraceHitItem->StartItemCurve(this);
+	}
+	
+}
+void AShooterCharacter::SelectButtonReleased()
+{
+	
+}
+
+void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
+{
+	DropWeapon();
+	EquipWeapon(WeaponToSwap);
+	TraceHitItem = nullptr;
+	TraceHitItemLastFrame = nullptr;
+}
+
+FVector AShooterCharacter::GetCameraInterpLocation()
+{
+	const FVector CameraWorldLocation{ FollowCamera->GetComponentLocation() };
+	const FVector CameraForward{ FollowCamera->GetForwardVector() };
+
+	return CameraWorldLocation + CameraForward * CameraInterpDistance + FVector(0.f,0.f, CameraInterpElevation);
+
+}
+
+void AShooterCharacter::GetPickUpItem(AItem* Item)
+{
+	auto Weapon = Cast<AWeapon>(Item);
+	if (Weapon)
+	{
+		SwapWeapon(Weapon);
+	}
+}
+
+void AShooterCharacter::InitializeAmmoMap()
+{
+	AmmoMap.Add(EAmmoType::EAT_9mm, Starting9mmAmmo);
+	AmmoMap.Add(EAmmoType::EAT_556mm, Starting9mmAmmo);
+}
+
 // Called to bind functionality to input
 void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -508,5 +590,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("FireButton", IE_Released, this, &AShooterCharacter::FireButtonReleased);
 	PlayerInputComponent->BindAction("AimButton", IE_Pressed, this, &AShooterCharacter::AimingButtonPressed);
 	PlayerInputComponent->BindAction("AimButton", IE_Released, this, &AShooterCharacter::AimingButtonReleased);
+	PlayerInputComponent->BindAction("Select", IE_Pressed, this, &AShooterCharacter::SelectButtonPressed);
+	PlayerInputComponent->BindAction("Select", IE_Released, this, &AShooterCharacter::SelectButtonReleased);
 	
 }
