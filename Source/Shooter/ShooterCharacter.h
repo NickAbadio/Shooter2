@@ -4,14 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AmmoType.h"
 #include "ShooterCharacter.generated.h"
 
-UENUM()
-enum class EAmmoType : uint8
+
+
+UENUM(BlueprintType)
+enum class ECombatState: uint8
 {
-	EAT_9mm UMETA(DisplayName = "9mm"),
-	EAT_556mm UMETA(DisplayName = "556mm"),
-	EAT_MAX UMETA(DisplayName = "DefaultMax")
+	ECS_Unoccupied UMETA(DisplayName = "Unoccupied"),
+	ECS_FireTimerInProgress UMETA(DisplayName = "FireTimerInProgress"),
+	ECS_Reloading UMETA(DisplayName = "Reloading"),
+	ECS_MAX UMETA(DisplayName = "DefaultMax")
 };
 
 UCLASS()
@@ -83,7 +87,32 @@ protected:
 	//Initialize the Ammo map with ammo values
 	void InitializeAmmoMap();
 
+	//check to make sure weapon has ammo
+	bool WeaponHasAmmo();
+
+	void PlayFireSound();
+
+	void SendBullet();
 	
+	void PlayGunFireMontage();
+
+	void ReloadButtonPressed();
+
+	void ReloadWeapon();
+
+	UFUNCTION(BlueprintCallable)
+	void FinishReloading();
+
+	bool CarryingAmmo();
+
+	UFUNCTION(BlueprintCallable)
+	void GrabClip();
+
+	UFUNCTION(BlueprintCallable)
+	void ReleaseClip();
+
+	
+
 
 public:	
 	// Called every frame
@@ -225,6 +254,21 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Items, meta = (AllowPrivateAccess = "true"))
 	int32 Starting556mmAmmo;
+
+	//Combat state can only fire or reload if unoccupied
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	ECombatState CombatState;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* ReloadMontage;
+
+	//Transform of the clip when we first grab the clip
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	FTransform ClipTransform;
+
+	//Scene component to attach from hand to clip
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* HandSceneComponent;
 
 public:
 	//** Returns CameraBoom subobject */

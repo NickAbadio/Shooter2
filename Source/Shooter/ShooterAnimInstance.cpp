@@ -6,6 +6,19 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+UShooterAnimInstance::UShooterAnimInstance() :
+    Speed(0.f),
+    bIsAccelerating(false),
+    bIsInAir(false),
+    bIsAiming(false),
+    CharacterYawLastFrame(0.f),
+    MovementOffset(0.f),
+    LastMovementOffsetYaw(0.f),
+    CharacterYaw(0.f),
+    RootYawOffset(0.f)
+{
+
+}
 void UShooterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 {
     if(ShooterCharacter == nullptr)
@@ -52,10 +65,67 @@ void UShooterAnimInstance::UpdateAnimationProperties(float DeltaTime)
         }
 
         bIsAiming = ShooterCharacter->GetAiming();
+        
     }
+    TurnInPlace();
+    
 }
 
 void UShooterAnimInstance::NativeInitializeAnimation()
 {
     ShooterCharacter = Cast<AShooterCharacter>(TryGetPawnOwner());
+}
+
+void UShooterAnimInstance::TurnInPlace()
+{
+    if (ShooterCharacter == nullptr) return;
+    Pitch = ShooterCharacter->GetBaseAimRotation().Pitch;
+    if (Speed > 0)
+    {
+        RootYawOffset = 0.f;
+        CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+        CharacterYawLastFrame = CharacterYaw;
+        RotationCurveLastFrame = 0.f;
+        RotationCurve = 0.f;
+
+    }
+    else
+    {
+        CharacterYawLastFrame = CharacterYaw;
+        CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+        const float YawDelta { CharacterYaw - CharacterYawLastFrame};
+
+        // Root Yaw Offset, Updated and clamped to [-180, 180]
+        RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - YawDelta);
+
+        const float Turning{ GetCurveValue(TEXT("Turning")) };
+        if (Turning > 0)
+        {
+            RotationCurveLastFrame = RotationCurve;
+            RotationCurve = GetCurveValue(TEXT("Rotation"));
+            const float DeltaRotation{ RotationCurve - RotationCurveLastFrame};
+
+            if(RootYawOffset>0) //Turning left
+            {
+                RootYawOffset -= DeltaRotation;
+
+            }
+            else //Turning Right
+            {
+                RootYawOffset += DeltaRotation;
+            }
+
+            const float ABSRootYawOffset{FMath::Abs(RootYawOffset)};
+            if (ABSRootYawOffset > 90.f)
+            {
+                const float YawExcess { ABSRootYawOffset - 90.f};
+                RootYawOffset > 0 ? RootYawOffset -= YawExcess : RootYawOffset += YawExcess;
+            }
+
+
+        }
+
+       
+       
+    }
 }
